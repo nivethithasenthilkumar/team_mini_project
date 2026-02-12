@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block title %}Add Field - Crop Monitoring{% endblock %}
+
+{% block page_title %}Add New Field{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Form Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-6 text-gray-900">Field Information</h3>
+        <form id="addFieldForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Field Name</label>
+                <input type="text" id="fieldName" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="e.g., North Field">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Crop Type</label>
+                <select id="cropType" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select a crop</option>
+                    <option value="Wheat">Wheat</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Corn">Corn</option>
+                    <option value="Soybean">Soybean</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Sugarcane">Sugarcane</option>
+                    <option value="Potato">Potato</option>
+                    <option value="Tomato">Tomato</option>
+                    <option value="Barley">Barley</option>
+                    <option value="Sorghum">Sorghum</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Planting Date</label>
+                <input type="date" id="plantingDate" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Area (acres)</label>
+                <input type="number" id="acres" step="0.01" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Enter field area in acres"
+                       onchange="updatePolygonFromAcres()">
+            </div>
+
+            <!-- Location Coordinates -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                    <input type="number" id="latitude" step="any" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="e.g., 20.5937">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                    <input type="number" id="longitude" step="any" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="e.g., 78.9629">
+                </div>
+            </div>
+
+            <div class="flex space-x-4">
+                <button type="button" onclick="clearLocation()"
+                        class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition font-medium">
+                    Clear Location
+                </button>
+                <button type="submit"
+                        class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
+                    Add Field
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Map Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">Select Field Location</h3>
+        
+        <!-- Search Box -->
+        <div class="mb-4">
+            <div class="relative">
+                <input type="text" id="searchBox" 
+                       class="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Search for location...">
+                <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+                <button onclick="searchLocation()" 
+                        class="absolute right-2 top-2 bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+                <div class="text-sm text-gray-700">
+                    <p class="font-semibold mb-1">How to select location:</p>
+                    <ol class="list-decimal ml-4 space-y-1">
+                        <li>Search for your location using the search box above</li>
+                        <li>Click on the map to select the exact field location</li>
+                        <li>Enter the field area in acres to generate the field boundary</li>
+                        <li>Coordinates will be automatically filled in the form</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <div id="map" class="h-96 rounded-lg border-2 border-gray-300 shadow-inner"></div>
+        
+        <!-- Quick Location Buttons -->
+        <div class="mt-4 grid grid-cols-3 gap-2">
+            <button onclick="setLocation(28.6139, 77.2090)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Delhi
+            </button>
+            <button onclick="setLocation(19.0760, 72.8777)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Mumbai
+            </button>
+            <button onclick="setLocation(12.9716, 77.5946)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Bangalore
+            </button>
+            <button onclick="setLocation(17.3850, 78.4867)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Hyderabad
+            </button>
+            <button onclick="setLocation(22.5726, 88.3639)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Kolkata
+            </button>
+            <button onclick="setLocation(13.0827, 80.2707)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm transition">
+                Chennai
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Fields -->
+<div class="mt-6 bg-white rounded-lg shadow p-6">
+    <h3 class="text-xl font-semibold mb-4 text-gray-900">Your Fields</h3>
+    <div id="fieldsList" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crop Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planting Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area (acres)</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="fieldsTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let map, marker, polygon, currentLat, currentLng;
+
+// Function to calculate polygon bounds based on acres
+function calculatePolygonBounds(lat, lng, acres) {
+    // Convert acres to square meters (1 acre = 4046.86 square meters)
+    const areaSqM = acres * 4046.86;
+    
+    // Calculate side length for a square (in meters)
+    const sideLength = Math.sqrt(areaSqM);
+    
+    // Convert meters to degrees (approximate conversion)
+    // At equator: 1° latitude = 111,320m, 1° longitude = 111,320m
+    // Adjust for latitude: longitude degrees get smaller as we move away from equator
+    const latToMeters = 111320;
+    const lngToMeters = 111320 * Math.cos(lat * Math.PI / 180);
+    
+    // Calculate degrees for half the side length (to extend in all directions from center)
+    const latDelta = (sideLength / 2) / latToMeters;
+    const lngDelta = (sideLength / 2) / lngToMeters;
+    
+    // Return bounds for the square polygon
+    return {
+        north: lat + latDelta,
+        south: lat - latDelta,
+        east: lng + lngDelta,
+        west: lng - lngDelta
+    };
+}
+
+// Function to create polygon coordinates from bounds
+function createPolygonCoordinates(bounds) {
+    return [
+        [bounds.west, bounds.south], // Southwest
+        [bounds.east, bounds.south], // Southeast
+        [bounds.east, bounds.north], // Northeast
+        [bounds.west, bounds.north], // Northwest
+        [bounds.west, bounds.south]  // Close polygon
+    ];
+}
+
+// Initialize map
+function initMap() {
+    // Create map
+    map = L.map('map').setView([20.5937, 78.9629], 5); // India center
+
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Add click event to map
+    map.on('click', function(e) {
+        currentLat = e.latlng.lat;
+        currentLng = e.latlng.lng;
+        setMarker(currentLat, currentLng);
+        updateCoordinates(currentLat, currentLng);
+        
+        // If acres is already entered, create polygon
+        const acres = parseFloat(document.getElementById('acres').value);
+        if (acres && acres > 0) {
+            createPolygon(currentLat, currentLng, acres);
+        }
+        
+        showNotification('Location selected!', 'success');
+    });
+
+    // Add scale control
+    L.control.scale().addTo(map);
+    
+    console.log('Map initialized successfully');
+}
+
+// Set marker at specified location
+function setMarker(lat, lng) {
+    // Remove existing marker
+    if (marker) {
+        map.removeLayer(marker);
+    }
+    
+    // Add new marker
+    marker = L.marker([lat, lng]).addTo(map);
+    
+    // Add popup
+    marker.bindPopup(`Field Center:<br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}`).openPopup();
+    
+    // Pan to marker
+    map.panTo([lat, lng]);
+}
+
+// Create or update polygon based on acres
+function createPolygon(lat, lng, acres) {
+    // Remove existing polygon
+    if (polygon) {
+        map.removeLayer(polygon);
+    }
+    
+    // Calculate bounds and create polygon
+    const bounds = calculatePolygonBounds(lat, lng, acres);
+    const coordinates = createPolygonCoordinates(bounds);
+    
+    // Create polygon
+    polygon = L.polygon(coordinates.map(coord => [coord[1], coord[0]]), {
+        color: 'blue',
+        weight: 2,
+        fillColor: 'lightblue',
+        fillOpacity: 0.4,
+        opacity: 0.8
+    }).addTo(map);
+    
+    // Add popup with area information
+    polygon.bindPopup(`Field Area: ${acres.toFixed(2)} acres<br>Approx. ${Math.sqrt(acres * 4046.86).toFixed(0)}m × ${Math.sqrt(acres * 4046.86).toFixed(0)}m`);
+    
+    // Adjust map view to show both marker and polygon
+    const group = new L.featureGroup([marker, polygon]);
+    map.fitBounds(group.getBounds().pad(0.1));
+}
+
+// Update polygon when acres value changes
+function updatePolygonFromAcres() {
+    const acres = parseFloat(document.getElementById('acres').value);
+    const lat = parseFloat(document.getElementById('latitude').value);
+    const lng = parseFloat(document.getElementById('longitude').value);
+    
+    if (acres && acres > 0 && lat && lng) {
+        createPolygon(lat, lng, acres);
+        showNotification(`Field boundary updated for ${acres} acres`, 'success');
+    }
+}
+
+// Update coordinate inputs
+function updateCoordinates(lat, lng) {
+    document.getElementById('latitude').value = lat.toFixed(6);
+    document.getElementById('longitude').value = lng.toFixed(6);
+}
+
+// Search for location
+function searchLocation() {
+    const query = document.getElementById('searchBox').value.trim();
+    
+    if (!query) {
+        showNotification('Please enter a location to search', 'error');
+        return;
+    }
+    
+    // Use Nominatim for geocoding (OpenStreetMap)
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const result = data[0];
+                currentLat = parseFloat(result.lat);
+                currentLng = parseFloat(result.lon);
+                
+                // Set marker and update map
+                setMarker(currentLat, currentLng);
+                updateCoordinates(currentLat, currentLng);
+                
+                // If acres is already entered, create polygon
+                const acres = parseFloat(document.getElementById('acres').value);
+                if (acres && acres > 0) {
+                    createPolygon(currentLat, currentLng, acres);
+                }
+                
+                // Update map view
+                map.setView([currentLat, currentLng], 13);
+                
+                showNotification(`Location found: ${result.display_name}`, 'success');
+            } else {
+                showNotification('Location not found. Please try a different search term.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            showNotification('Error searching for location', 'error');
+        });
+}
+
+// Set location from quick buttons
+function setLocation(lat, lng) {
+    currentLat = lat;
+    currentLng = lng;
+    setMarker(lat, lng);
+    updateCoordinates(lat, lng);
+    
+    // If acres is already entered, create polygon
+    const acres = parseFloat(document.getElementById('acres').value);
+    if (acres && acres > 0) {
+        createPolygon(lat, lng, acres);
+    }
+    
+    map.setView([lat, lng], 10);
+    showNotification('Location set!', 'success');
+}
+
+// Clear location
+function clearLocation() {
+    if (marker) {
+        map.removeLayer(marker);
+        marker = null;
+    }
+    if (polygon) {
+        map.removeLayer(polygon);
+        polygon = null;
+    }
+    document.getElementById('latitude').value = '';
+    document.getElementById('longitude').value = '';
+    document.getElementById('searchBox').value = '';
+    currentLat = null;
+    currentLng = null;
+    showNotification('Location cleared', 'success');
+}
+
+// Handle form submission
+document.getElementById('addFieldForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const latitude = document.getElementById('latitude').value;
+    const longitude = document.getElementById('longitude').value;
+    const acres = parseFloat(document.getElementById('acres').value);
+    
+    if (!latitude || !longitude) {
+        showNotification('Please select a location on the map first!', 'error');
+        return;
+    }
+    
+    if (!acres || acres <= 0) {
+        showNotification('Please enter a valid field area in acres!', 'error');
+        return;
+    }
+    
+    // Create polygon coordinates based on acres
+    const bounds = calculatePolygonBounds(parseFloat(latitude), parseFloat(longitude), acres);
+    const coordinates = createPolygonCoordinates(bounds);
+    
+    const formData = {
+        field_name: document.getElementById('fieldName').value,
+        crop_type: document.getElementById('cropType').value,
+        planting_date: document.getElementById('plantingDate').value,
+        acres: acres,
+        geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates]
+        }
+    };
+    
+    try {
+        const response = await fetch('/api/add-field', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Field added successfully! Data collection started.', 'success');
+            document.getElementById('addFieldForm').reset();
+            clearLocation();
+            loadFields();
+        } else {
+            showNotification(data.message || 'Failed to add field', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('An error occurred while adding the field', 'error');
+    }
+});
+
+// Load existing fields
+// Load existing fields
+async function loadFields() {
+    try {
+        console.log('Loading fields...');
+        const response = await fetch('/api/fields');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const fields = await response.json();
+        console.log('Fields data:', fields);
+        
+        const tbody = document.getElementById('fieldsTableBody');
+        
+        if (!fields || fields.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-tractor text-4xl text-gray-300 mb-2"></i>
+                            <p class="text-lg font-medium text-gray-500 mb-1">No fields added yet</p>
+                            <p class="text-sm text-gray-400">Add your first field using the form above!</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = fields.map(field => {
+            console.log('Processing field:', field);
+            
+            // Handle both stringified JSON and object geometry
+            let geometry;
+            if (typeof field.geometry === 'string') {
+                try {
+                    geometry = JSON.parse(field.geometry);
+                } catch (e) {
+                    console.error('Error parsing geometry:', e);
+                    geometry = { coordinates: [[[0, 0]]] }; // Default fallback
+                }
+            } else {
+                geometry = field.geometry;
+            }
+            
+            const center = geometry.coordinates[0][0]; // First coordinate of polygon
+            const plantingDate = new Date(field.planting_date).toLocaleDateString();
+            
+            return `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${field.field_name || 'Unnamed Field'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${field.crop_type || 'Not specified'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${plantingDate}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${(field.acres || 0).toFixed(2)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">
+                            ${center[1] ? center[1].toFixed(4) : 'N/A'}, ${center[0] ? center[0].toFixed(4) : 'N/A'}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="/analytics?field=${field.id || ''}" 
+                           class="text-blue-600 hover:text-blue-900 transition-colors inline-flex items-center">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            View Analytics
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        console.log('Fields table updated successfully');
+        
+    } catch (error) {
+        console.error('Error loading fields:', error);
+        const tbody = document.getElementById('fieldsTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-300 mb-2"></i>
+                        <p class="text-lg font-medium text-red-500 mb-1">Error loading fields</p>
+                        <p class="text-sm text-gray-400">Please check your connection and try again</p>
+                        <button onclick="loadFields()" class="mt-3 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                            Retry
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, initializing map...');
+    setTimeout(initMap, 100);
+    loadFields();
+});
+
+// Set max date to today
+document.getElementById('plantingDate').max = new Date().toISOString().split('T')[0];
+
+// Allow pressing Enter in search box
+document.getElementById('searchBox').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchLocation();
+    }
+});
+</script>
+{% endblock %}

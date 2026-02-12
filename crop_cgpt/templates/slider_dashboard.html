@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="swiper">
+  <div class="swiper-wrapper">
+
+    <!-- Slide 1: Sensors -->
+    <section class="swiper-slide slide">
+      <div class="panel">
+        <div class="card left">
+          <div class="title">Sensors Overview</div>
+          <div class="muted">Live values from field sensors</div>
+
+          <div style="margin-top:18px; display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="metric"><div class="num">{{ sensors.temp or '--' }}°C</div><div class="label">Temperature</div></div>
+            <div class="metric"><div class="num">{{ sensors.humidity or '--' }}%</div><div class="label">Humidity</div></div>
+            <div class="metric"><div class="num">{{ sensors.soil_moisture or '--' }}%</div><div class="label">Soil Moisture</div></div>
+          </div>
+
+          <div style="margin-top:18px;">
+            <p class="muted">Last update: {{ sensors.last_seen or 'N/A' }}</p>
+            <a class="btn" href="{{ url_for('alerts') }}">View Alerts</a>
+          </div>
+        </div>
+
+        <div class="card right">
+          <div class="big">
+            <div style="font-weight:600;">Sensor Graph</div>
+            <!-- placeholder for chart -->
+            <div id="chart-sensors" style="flex:1; min-height:200px; background:linear-gradient(90deg,#f8fff9, #ffffff); border-radius:10px; display:flex; align-items:center; justify-content:center;">Chart</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 2: Soil -->
+    <section class="swiper-slide slide">
+      <div class="panel">
+        <div class="card left">
+          <div class="title">Soil Health</div>
+          <div class="muted">pH, nutrients and recommendations</div>
+
+          <div style="margin-top:18px;">
+            <div class="metric"><div class="num">{{ soil.ph or '--' }}</div><div class="label">pH</div></div>
+            <div style="margin-top:12px;" class="muted">Nutrient levels:</div>
+            <ul class="muted">
+              <li>N: {{ soil.nitrogen or '--' }}</li>
+              <li>P: {{ soil.phosphorous or '--' }}</li>
+              <li>K: {{ soil.potassium or '--' }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card right">
+          <div style="font-weight:600;">Soil Map</div>
+          <div style="height:260px; display:flex;align-items:center;justify-content:center;">Map / Image</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 3: Fertilizer -->
+    <section class="swiper-slide slide">
+      <div class="panel">
+        <div class="card left">
+          <div class="title">Fertilizer Recommendation</div>
+          <div class="muted">Auto suggestions for current field</div>
+          <div style="margin-top:16px;">
+            <h3 style="margin:0;">{{ fertilizer.recommendation_title or 'Balanced NPK' }}</h3>
+            <p class="muted">{{ fertilizer.recommendation_text or 'Apply 50kg per hectare...' }}</p>
+          </div>
+        </div>
+
+        <div class="card right">
+          <div style="font-weight:600;">Recommended Mix</div>
+          <div style="height:220px;display:flex;align-items:center;justify-content:center;">Recipe / Image</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 4: Prediction -->
+    <section class="swiper-slide slide">
+      <div class="panel">
+        <div class="card left">
+          <div class="title">Crop Yield Prediction</div>
+          <div class="muted">Model output based on current data</div>
+
+          <div style="margin-top:16px;">
+            <div class="metric"><div class="num">{{ prediction.yield or '--' }} t/ha</div><div class="label">Estimated Yield</div></div>
+            <p class="muted" style="margin-top:12px;">Confidence: {{ prediction.confidence or '--' }}%</p>
+          </div>
+        </div>
+
+        <div class="card right">
+          <div style="font-weight:600;">What changed?</div>
+          <div style="height:220px;display:flex;align-items:center;justify-content:center;">Feature importance chart</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- pagination dots -->
+  <div class="swiper-pagination"></div>
+</div>
+{% endblock %}

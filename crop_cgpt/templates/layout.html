@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crop Monitor Dashboard</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Swiper.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <style>
+        /* Smooth fade + slide animation */
+        .swiper-slide {
+            transition: transform 0.5s ease, opacity 0.4s ease;
+        }
+        body {
+            background-color: #f7f9fc;
+        }
+    </style>
+</head>
+
+<body class="text-gray-800">
+
+    <!-- TOP NAVIGATION -->
+    <nav class="w-full bg-white shadow-md py-4 fixed top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
+
+            <!-- LOGO -->
+            <div class="text-2xl font-bold text-green-600">
+                CropMonitorX
+            </div>
+
+            <!-- NAV LINKS -->
+            <div class="hidden md:flex space-x-10 text-lg font-medium">
+                <button class="nav-btn" data-slide="0">Dashboard</button>
+                <button class="nav-btn" data-slide="1">Add Field</button>
+                <button class="nav-btn" data-slide="2">Analytics</button>
+                <button class="nav-btn" data-slide="3">Alerts</button>
+                <button class="nav-btn" data-slide="4">Reports</button>
+                <button class="nav-btn" data-slide="5">Manual</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT AREA (Swiper Slider) -->
+    <div class="swiper mySwiper mt-20">
+        <div class="swiper-wrapper">
+
+            <!-- Slide 0 : DASHBOARD -->
+            <div class="swiper-slide px-6 py-8">
+                {% block dashboard %}
+                <h2 class="text-3xl font-semibold mb-6">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-6 bg-white shadow rounded-2xl">Crop Summary</div>
+                    <div class="p-6 bg-white shadow rounded-2xl">Field Health</div>
+                    <div class="p-6 bg-white shadow rounded-2xl">Forecast</div>
+                </div>
+                {% endblock %}
+            </div>
+
+            <!-- Slide 1 : ADD FIELD -->
+            <div class="swiper-slide px-6 py-8">
+                {% block add_field %}
+                <h2 class="text-3xl font-semibold mb-6">Add New Field</h2>
+                {% endblock %}
+            </div>
+
+            <!-- Slide 2 : ANALYTICS -->
+            <div class="swiper-slide px-6 py-8">
+                {% block analytics %}
+                <h2 class="text-3xl font-semibold mb-6">Analytics</h2>
+                {% endblock %}
+            </div>
+
+            <!-- Slide 3 : ALERTS -->
+            <div class="swiper-slide px-6 py-8">
+                {% block alerts %}
+                <h2 class="text-3xl font-semibold mb-6">Alerts</h2>
+                {% endblock %}
+            </div>
+
+            <!-- Slide 4 : REPORTS -->
+            <div class="swiper-slide px-6 py-8">
+                {% block reports %}
+                <h2 class="text-3xl font-semibold mb-6">Reports</h2>
+                {% endblock %}
+            </div>
+
+            <!-- Slide 5 : MANUAL -->
+            <div class="swiper-slide px-6 py-8">
+                {% block manual %}
+                <h2 class="text-3xl font-semibold mb-6">User Manual</h2>
+                {% endblock %}
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Swiper Controls -->
+    <script>
+        const swiper = new Swiper(".mySwiper", {
+            speed: 500,
+            allowTouchMove: true,
+            slidesPerView: 1
+        });
+
+        document.querySelectorAll(".nav-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                swiper.slideTo(btn.dataset.slide);
+            });
+        });
+    </script>
+
+</body>
+</html>

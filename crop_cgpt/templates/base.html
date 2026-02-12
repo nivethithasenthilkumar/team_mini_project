@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Crop Monitoring System{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- JS Libraries -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+    <style>
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+        }
+
+        .nav-item {
+            transition: all 0.25s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.12);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.18);
+            border-left: 4px solid #3b82f6;
+        }
+
+        /* Cards */
+        .card {
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+
+        /* Dropdown */
+        .dropdown-container {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            min-width: 200px;
+            background: #1e40af;
+            border-radius: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-8px);
+            transition: all 0.25s ease;
+            z-index: 50;
+        }
+
+        .dropdown-container:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 12px 16px;
+            color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #3730a3;
+            padding-left: 22px;
+        }
+
+        .dropdown-item.active {
+            background: #3730a3;
+            border-left: 4px solid #60a5fa;
+        }
+
+        /* Mobile Responsive Sidebar */
+        @media (max-width: 768px) {
+            aside.sidebar {
+                position: absolute;
+                z-index: 50;
+                width: 0;
+                overflow: hidden;
+                transition: width 0.3s ease;
+            }
+            aside.sidebar.open {
+                width: 240px;
+            }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="bg-gray-50">
+
+{% if request.endpoint not in ['login', 'register'] %}
+
+<div class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar w-64 text-white flex-shrink-0">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold flex items-center">
+                <i class="fas fa-leaf mr-2"></i> CropMonitor
+            </h1>
+        </div>
+
+        <nav class="mt-4">
+            <a href="{{ url_for('dashboard') }}"
+               class="nav-item flex items-center px-6 py-3 {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-gauge w-6"></i>
+                <span class="ml-3">Dashboard</span>
+            </a>
+
+            <a href="{{ url_for('add_field') }}"
+               class="nav-item flex items-center px-6 py-3 {% if request.endpoint == 'add_field' %}active{% endif %}">
+                <i class="fas fa-plus-circle w-6"></i>
+                <span class="ml-3">Add Field</span>
+            </a>
+
+            <a href="{{ url_for('analytics') }}"
+               class="nav-item flex items-center px-6 py-3 {% if request.endpoint == 'analytics' %}active{% endif %}">
+                <i class="fas fa-chart-line w-6"></i>
+                <span class="ml-3">Analytics</span>
+            </a>
+
+            <a href="{{ url_for('alerts') }}"
+               class="nav-item flex items-center px-6 py-3 {% if request.endpoint == 'alerts' %}active{% endif %}">
+                <i class="fas fa-bell w-6"></i>
+                <span class="ml-3">Alerts</span>
+            </a>
+
+            <a href="{{ url_for('report') }}"
+               class="nav-item flex items-center px-6 py-3 {% if request.endpoint == 'report' %}active{% endif %}">
+                <i class="fas fa-file-alt w-6"></i>
+                <span class="ml-3">Reports</span>
+            </a>
+
+            <!-- Dropdown -->
+            <div class="dropdown-container nav-item px-6 py-3 cursor-pointer">
+                <div class="flex items-center">
+                    <i class="fas fa-book w-6"></i>
+                    <span class="ml-3 flex-1">Manual</span>
+                    <i class="fas fa-chevron-right dropdown-arrow ml-2 text-sm"></i>
+                </div>
+
+                <div class="dropdown-menu">
+                    <a href="{{ url_for('crop_manual') }}"
+                       class="dropdown-item {% if request.endpoint == 'crop_manual' %}active{% endif %}">
+                        <i class="fas fa-seedling mr-2"></i> Crop Manual
+                    </a>
+
+                    <a href="{{ url_for('yield_manual') }}"
+                       class="dropdown-item {% if request.endpoint == 'yield_manual' %}active{% endif %}">
+                        <i class="fas fa-chart-bar mr-2"></i> Yield Manual
+                    </a>
+                </div>
+            </div>
+
+        </nav>
+
+        <!-- Logout -->
+        <div class="absolute bottom-0 w-full p-6">
+            <a href="{{ url_for('logout') }}"
+               class="nav-item flex items-center px-6 py-3 hover:bg-red-600 rounded-lg">
+                <i class="fas fa-sign-out-alt w-6"></i>
+                <span class="ml-3">Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Screen -->
+    <div class="flex-1 flex flex-col">
+
+        <!-- Top Bar -->
+        <header class="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <button onclick="toggleSidebar()" class="md:hidden mr-4 text-gray-600">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <h2 class="text-2xl font-semibold text-gray-800">
+                    {% block page_title %}{% endblock %}
+                </h2>
+            </div>
+
+            <div class="flex items-center">
+                <span class="text-gray-600 mr-4">Welcome, {{ session.username }}</span>
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                    {{ session.username[0].upper() }}
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="flex-1 overflow-auto p-6 bg-gray-50">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+</div>
+
+{% else %}
+    {% block standalone_content %}{% endblock %}
+{% endif %}
+
+<script>
+    // Sidebar toggle (mobile)
+    function toggleSidebar() {
+        const s = document.getElementById('sidebar');
+        s.classList.toggle('open');
+    }
+
+    // Notification function
+    function showNotification(message, type = 'success') {
+        const n = document.createElement('div');
+        n.className = `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg text-white z-50 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        n.textContent = message;
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 3000);
+    }
+</script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

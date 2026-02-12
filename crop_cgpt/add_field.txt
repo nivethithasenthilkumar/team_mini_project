@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Add Field - Crop Monitoring{% endblock %}
+
+{% block page_title %}Add New Field{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Form Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-6 text-gray-900">Field Information</h3>
+        <form id="addFieldForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Field Name</label>
+                <input type="text" id="fieldName" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="e.g., North Field">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Crop Type</label>
+                <select id="cropType" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select a crop</option>
+                    <option value="Wheat">Wheat</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Corn">Corn</option>
+                    <option value="Soybean">Soybean</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Sugarcane">Sugarcane</option>
+                    <option value="Potato">Potato</option>
+                    <option value="Tomato">Tomato</option>
+                    <option value="Barley">Barley</option>
+                    <option value="Sorghum">Sorghum</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Planting Date</label>
+                <input type="date" id="plantingDate" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Area (acres)</label>
+                <input type="number" id="acres" step="0.01" readonly
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                       placeholder="Draw field on map to calculate">
+            </div>
+
+            <div class="flex space-x-4">
+                <button type="button" onclick="clearDrawing()"
+                        class="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition font-medium">
+                    Clear Drawing
+                </button>
+                <button type="submit"
+                        class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">
+                    Add Field
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Map Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">Draw Your Field</h3>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+                <div class="text-sm text-gray-700">
+                    <p class="font-semibold mb-1">How to draw your field:</p>
+                    <ol class="list-decimal ml-4 space-y-1">
+                        <li>Click the <strong>polygon icon</strong> (□) on the left side of the map</li>
+                        <li>Click on the map to add points for your field boundary</li>
+                        <li>Double-click to complete the polygon</li>
+                        <li>The area will be calculated automatically</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div id="map" class="h-96 rounded-lg border-2 border-gray-300 shadow-inner"></div>
+    </div>
+</div>
+
+<!-- Recent Fields -->
+<div class="mt-6 bg-white rounded-lg shadow p-6">
+    <h3 class="text-xl font-semibold mb-4 text-gray-900">Your Fields</h3>
+    <div id="fieldsList" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crop Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planting Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area (acres)</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="fieldsTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let map, drawnItems, drawControl;
+let currentPolygon = null;
+
+// Initialize map
+function initMap() {
+    // Create map
+    map = L.map('map').setView([20.5937, 78.9629], 5); // India center
+
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Initialize feature group for drawn items
+    drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    // Initialize draw control
+    drawControl = new L.Control.Draw({
+        position: 'topleft',
+        draw: {
+            polygon: {
+                allowIntersection: false,
+                drawError: {
+                    color: '#e74c3c',
+                    message: '<strong>Error:</strong> Shape edges cannot cross!'
+                },
+                shapeOptions: {
+                    color: '#3b82f6',
+                    weight: 3,
+                    fillOpacity: 0.4,
+                    fillColor: '#60a5fa'
+                },
+                showArea: true,
+                metric: true
+            },
+            polyline: false,
+            circle: false,
+            rectangle: {
+                shapeOptions: {
+                    color: '#3b82f6',
+                    weight: 3,
+                    fillOpacity: 0.4
+                }
+            },
+            marker: false,
+            circlemarker: false
+        },
+        edit: {
+            featureGroup: drawnItems,
+            remove: true,
+            edit: true
+        }
+    });
+    map.addControl(drawControl);
+
+    // Handle draw created event
+    map.on(L.Draw.Event.CREATED, function(e) {
+        const layer = e.layer;
+        
+        // Remove existing polygon if any
+        if (currentPolygon) {
+            drawnItems.removeLayer(currentPolygon);
+        }
+        
+        // Add new polygon
+        currentPolygon = layer;
+        drawnItems.addLayer(currentPolygon);
+        calculateArea(currentPolygon);
+        
+        showNotification('Field boundary drawn successfully!', 'success');
+    });
+
+    // Handle draw edited event
+    map.on(L.Draw.Event.EDITED, function(e) {
+        e.layers.eachLayer(function(layer) {
+            calculateArea(layer);
+        });
+        showNotification('Field boundary updated!', 'success');
+    });
+
+    // Handle draw deleted event
+    map.on(L.Draw.Event.DELETED, function() {
+        currentPolygon = null;
+        document.getElementById('acres').value = '';
+        showNotification('Field boundary removed', 'success');
+    });
+
+    // Add scale control
+    L.control.scale().addTo(map);
+    
+    console.log('Map initialized successfully with drawing tools');
+}
+
+function calculateArea(layer) {
+    let latlngs;
+    
+    // Handle both polygon and rectangle
+    if (layer.getLatLngs) {
+        latlngs = layer.getLatLngs()[0];
+    } else {
+        return;
+    }
+    
+    // Calculate area using Shoelace formula (in square degrees)
+    let area = 0;
+    const n = latlngs.length;
+    
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        area += latlngs[i].lng * latlngs[j].lat;
+        area -= latlngs[j].lng * latlngs[i].lat;
+    }
+    
+    area = Math.abs(area / 2);
+    
+    // Get approximate center latitude for better conversion
+    const centerLat = latlngs.reduce((sum, ll) => sum + ll.lat, 0) / n;
+    
+    // Convert square degrees to square meters (more accurate)
+    // 1 degree latitude ≈ 111,320 meters
+    // 1 degree longitude varies by latitude: 111,320 * cos(latitude)
+    const latMeters = 111320;
+    const lngMeters = 111320 * Math.cos(centerLat * Math.PI / 180);
+    
+    const areaInSquareMeters = area * latMeters * lngMeters;
+    
+    // Convert square meters to acres (1 acre = 4046.86 square meters)
+    const acres = areaInSquareMeters / 4046.86;
+    
+    // Update the acres field
+    document.getElementById('acres').value = acres.toFixed(2);
+}
+
+function clearDrawing() {
+    if (currentPolygon) {
+        drawnItems.removeLayer(currentPolygon);
+        currentPolygon = null;
+        document.getElementById('acres').value = '';
+        showNotification('Drawing cleared', 'success');
+    } else {
+        showNotification('No drawing to clear', 'error');
+    }
+}
+
+document.getElementById('addFieldForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!currentPolygon) {
+        showNotification('Please draw the field boundaries on the map first!', 'error');
+        return;
+    }
+    
+    const latlngs = currentPolygon.getLatLngs()[0];
+    const coordinates = latlngs.map(ll => [ll.lng, ll.lat]);
+    coordinates.push(coordinates[0]); // Close the polygon
+    
+    const formData = {
+        field_name: document.getElementById('fieldName').value,
+        crop_type: document.getElementById('cropType').value,
+        planting_date: document.getElementById('plantingDate').value,
+        acres: parseFloat(document.getElementById('acres').value),
+        geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates]
+        }
+    };
+    
+    try {
+        const response = await fetch('/api/add-field', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Field added successfully! Data collection started.', 'success');
+            document.getElementById('addFieldForm').reset();
+            clearDrawing();
+            loadFields();
+        } else {
+            showNotification(data.message || 'Failed to add field', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('An error occurred while adding the field', 'error');
+    }
+});
+
+async function loadFields() {
+    try {
+        const response = await fetch('/api/fields');
+        const fields = await response.json();
+        
+        const tbody = document.getElementById('fieldsTableBody');
+        
+        if (fields.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        No fields added yet. Draw your first field on the map above!
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = fields.map(field => `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${field.field_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.crop_type}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.planting_date}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.acres.toFixed(2)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <a href="/analytics?field=${field.id}" class="text-blue-600 hover:text-blue-900 font-medium">
+                        <i class="fas fa-chart-line mr-1"></i>View Analytics
+                    </a>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading fields:', error);
+    }
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, initializing map...');
+    setTimeout(initMap, 100); // Small delay to ensure DOM is ready
+    loadFields();
+});
+
+// Set max date to today
+document.getElementById('plantingDate').max = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

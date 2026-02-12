@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Crop Monitoring{% endblock %}
+
+{% block page_title %}Generate Reports{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Report Generator -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-6 text-gray-900">Create Field Report</h3>
+        <form id="reportForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Field</label>
+                    <select id="fieldSelect" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Choose a field</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <input type="date" id="startDate" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <input type="date" id="endDate" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium text-lg">
+                <i class="fas fa-file-pdf mr-2"></i>
+                Generate PDF Report
+            </button>
+        </form>
+    </div>
+
+    <!-- Field Preview -->
+    <div id="previewSection" class="hidden bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">Report Preview</h3>
+        <div id="previewContent" class="space-y-6">
+            <!-- Preview will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-6 text-gray-900">Quick Report Templates</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="card border border-gray-200 rounded-lg p-6 hover:border-blue-500 transition cursor-pointer"
+                 onclick="quickReport('week')">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-100 rounded-full p-3 mr-4">
+                        <i class="fas fa-calendar-week text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-900">Weekly Report</h4>
+                        <p class="text-sm text-gray-500">Last 7 days</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600">
+                    Quick overview of field performance over the past week
+                </p>
+            </div>
+
+            <div class="card border border-gray-200 rounded-lg p-6 hover:border-blue-500 transition cursor-pointer"
+                 onclick="quickReport('month')">
+                <div class="flex items-center mb-4">
+                    <div class="bg-green-100 rounded-full p-3 mr-4">
+                        <i class="fas fa-calendar-alt text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-900">Monthly Report</h4>
+                        <p class="text-sm text-gray-500">Last 30 days</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600">
+                    Comprehensive monthly analysis and trends
+                </p>
+            </div>
+
+            <div class="card border border-gray-200 rounded-lg p-6 hover:border-blue-500 transition cursor-pointer"
+                 onclick="quickReport('season')">
+                <div class="flex items-center mb-4">
+                    <div class="bg-purple-100 rounded-full p-3 mr-4">
+                        <i class="fas fa-calendar text-purple-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-900">Seasonal Report</h4>
+                        <p class="text-sm text-gray-500">Since planting</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600">
+                    Complete crop cycle analysis from planting date
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report History -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">All Fields Summary</h3>
+        <div id="fieldsSummary" class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crop Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planting Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Health Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryTableBody" class="bg-white divide-y divide-gray-200">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let fieldsData = [];
+
+async function loadFields() {
+    try {
+        const response = await fetch('/api/fields');
+        fieldsData = await response.json();
+        
+        const select = document.getElementById('fieldSelect');
+        select.innerHTML = '<option value="">Choose a field</option>' +
+            fieldsData.map(f => `<option value="${f.id}">${f.field_name} (${f.crop_type})</option>`).join('');
+        
+        // Load summary table
+        loadFieldsSummary();
+    } catch (error) {
+        console.error('Error loading fields:', error);
+    }
+}
+
+async function loadFieldsSummary() {
+    const tbody = document.getElementById('summaryTableBody');
+    
+    if (fieldsData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    No fields found. <a href="/add-field" class="text-blue-600 hover:underline">Add your first field</a>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = fieldsData.map(field => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${field.field_name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.crop_type}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.acres.toFixed(2)} acres</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${field.planting_date}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                    Monitoring
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <button onclick="generateFieldReport(${field.id})" 
+                        class="text-blue-600 hover:text-blue-900 mr-3">
+                    <i class="fas fa-file-pdf mr-1"></i>Report
+                </button>
+                <a href="/analytics?field=${field.id}" class="text-green-600 hover:text-green-900">
+                    <i class="fas fa-chart-line mr-1"></i>Analytics
+                </a>
+            </td>
+        </tr>
+    `).join('');
+}
+
+document.getElementById('reportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const fieldId = document.getElementById('fieldSelect').value;
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    
+    if (!fieldId) {
+        showNotification('Please select a field', 'error');
+        return;
+    }
+    
+    await generateReport(fieldId, startDate, endDate);
+});
+
+async function generateReport(fieldId, startDate, endDate) {
+    try {
+        showNotification('Generating report...', 'success');
+        
+        const response = await fetch('/api/generate-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                field_id: fieldId,
+                start_date: startDate,
+                end_date: endDate
+            })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `field_report_${fieldId}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            
+            showNotification('Report generated successfully!', 'success');
+        } else {
+            showNotification('Error generating report', 'error');
+        }
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showNotification('Error generating report', 'error');
+    }
+}
+
+function quickReport(period) {
+    const fieldSelect = document.getElementById('fieldSelect');
+    
+    if (!fieldSelect.value) {
+        showNotification('Please select a field first', 'error');
+        return;
+    }
+    
+    const endDate = new Date();
+    const startDate = new Date();
+    
+    switch(period) {
+        case 'week':
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+        case 'month':
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+        case 'season':
+            const field = fieldsData.find(f => f.id == fieldSelect.value);
+            if (field) {
+                document.getElementById('startDate').value = field.planting_date;
+                document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+                document.getElementById('reportForm').dispatchEvent(new Event('submit'));
+                return;
+            }
+            break;
+    }
+    
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+    document.getElementById('reportForm').dispatchEvent(new Event('submit'));
+}
+
+async function generateFieldReport(fieldId) {
+    const field = fieldsData.find(f => f.id === fieldId);
+    if (!field) return;
+    
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = field.planting_date;
+    
+    await generateReport(fieldId, startDate, endDate);
+}
+
+// Initialize
+loadFields();
+
+// Set default dates (last 30 days)
+const endDate = new Date();
+const startDate = new Date();
+startDate.setDate(startDate.getDate() - 30);
+
+document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+document.getElementById('endDate').max = endDate.toISOString().split('T')[0];
+</script>
+{% endblock %}

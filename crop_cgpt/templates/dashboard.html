@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crop Monitoring{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="card bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                    <i class="fas fa-map-marked-alt text-white text-2xl"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Fields</dt>
+                        <dd class="text-3xl font-semibold text-gray-900" id="totalFields">0</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                    <i class="fas fa-ruler-combined text-white text-2xl"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Acres</dt>
+                        <dd class="text-3xl font-semibold text-gray-900" id="totalAcres">0</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+                    <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Active Alerts</dt>
+                        <dd class="text-3xl font-semibold text-gray-900" id="totalAlerts">0</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                    <i class="fas fa-seedling text-white text-2xl"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Crop Types</dt>
+                        <dd class="text-3xl font-semibold text-gray-900" id="cropTypes">0</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fields Overview -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Your Fields Overview</h3>
+        </div>
+        <div class="p-6">
+            <div id="fieldsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Fields will be loaded here -->
+            </div>
+            <div id="noFields" class="text-center py-12 hidden">
+                <i class="fas fa-map-marked-alt text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 text-lg">No fields added yet</p>
+                <a href="{{ url_for('add_field') }}" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                    Add Your First Field
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadDashboard() {
+    try {
+        const response = await fetch('/api/dashboard-stats');
+        const data = await response.json();
+        
+        document.getElementById('totalFields').textContent = data.total_fields;
+        document.getElementById('totalAcres').textContent = data.total_acres.toFixed(2);
+        document.getElementById('totalAlerts').textContent = data.total_alerts;
+        
+        const cropTypes = new Set(data.fields.map(f => f.crop_type));
+        document.getElementById('cropTypes').textContent = cropTypes.size;
+        
+        const fieldsContainer = document.getElementById('fieldsContainer');
+        const noFields = document.getElementById('noFields');
+        
+        if (data.fields.length === 0) {
+            fieldsContainer.classList.add('hidden');
+            noFields.classList.remove('hidden');
+        } else {
+            fieldsContainer.classList.remove('hidden');
+            noFields.classList.add('hidden');
+            
+            fieldsContainer.innerHTML = data.fields.map(field => `
+                <div class="card bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold text-gray-900">${field.field_name}</h4>
+                        ${field.alert_count > 0 ? 
+                            `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                ${field.alert_count} Alert${field.alert_count > 1 ? 's' : ''}
+                            </span>` : 
+                            `<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                Healthy
+                            </span>`
+                        }
+                    </div>
+                    <div class="space-y-2 text-sm text-gray-600">
+                        <div class="flex items-center">
+                            <i class="fas fa-seedling w-5"></i>
+                            <span class="ml-2">Crop: ${field.crop_type}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-calendar w-5"></i>
+                            <span class="ml-2">Planted: ${field.planting_date}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-ruler-combined w-5"></i>
+                            <span class="ml-2">Area: ${field.acres.toFixed(2)} acres</span>
+                        </div>
+                        ${field.latest_ndvi ? `
+                            <div class="flex items-center">
+                                <i class="fas fa-chart-line w-5"></i>
+                                <span class="ml-2">NDVI: <strong class="${getNDVIColor(field.latest_ndvi)}">${field.latest_ndvi.toFixed(3)}</strong></span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-heart-pulse w-5"></i>
+                                <span class="ml-2">Status: <strong class="${getNDVIColor(field.latest_ndvi)}">${getHealthStatus(field.latest_ndvi)}</strong></span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">
+                                Last updated: ${field.latest_date}
+                            </div>
+                        ` : `
+                            <div class="flex items-center text-yellow-600">
+                                <i class="fas fa-clock w-5"></i>
+                                <span class="ml-2">Collecting data...</span>
+                            </div>
+                        `}
+                    </div>
+                    <div class="mt-4 flex space-x-2">
+                        <a href="/analytics?field=${field.id}" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded text-center text-sm hover:bg-blue-700 transition">
+                            View Analytics
+                        </a>
+                        <button onclick="updateFieldData(${field.id})" class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 transition" title="Refresh Data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button onclick="deleteField(${field.id}, '${field.field_name}')" class="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 transition" title="Delete Field">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+async function updateFieldData(fieldId) {
+    try {
+        showNotification('Updating field data...', 'success');
+        const response = await fetch(`/api/field/${fieldId}/update-ndvi`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        if (data.success) {
+            showNotification('Field data updated successfully!', 'success');
+            loadDashboard();
+        }
+    } catch (error) {
+        showNotification('Error updating field data', 'error');
+    }
+}
+
+async function deleteField(fieldId, fieldName) {
+    if (!confirm(`Are you sure you want to delete the field "${fieldName}"?\n\nThis will permanently delete:\n- Field data\n- All NDVI measurements\n- All alerts\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/field/${fieldId}/delete`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Field deleted successfully', 'success');
+            loadDashboard();
+        } else {
+            showNotification(data.message || 'Error deleting field', 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting field', 'error');
+    }
+}
+
+function getHealthStatus(ndvi) {
+    if (!ndvi) return 'Unknown';
+    if (ndvi >= 0.6) return 'Excellent';
+    if (ndvi >= 0.4) return 'Good';
+    if (ndvi >= 0.3) return 'Fair';
+    return 'Poor';
+}
+
+function getNDVIColor(ndvi) {
+    if (!ndvi) return 'text-gray-500';
+    if (ndvi >= 0.6) return 'text-green-600';
+    if (ndvi >= 0.4) return 'text-blue-600';
+    if (ndvi >= 0.3) return 'text-yellow-600';
+    return 'text-red-600';
+}
+
+loadDashboard();
+</script>
+{% endblock %}

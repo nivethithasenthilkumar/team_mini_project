@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Yield Manual Prediction - CropMonitor{% endblock %}
+
+{% block page_title %}📊 Manual Yield Prediction{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+            <h2 class="text-2xl font-bold text-white flex items-center">
+                <i class="fas fa-chart-bar mr-3"></i>
+                Manual Yield Prediction
+            </h2>
+            <p class="text-blue-100 mt-1">Enter farming parameters to predict crop yield</p>
+        </div>
+        
+        <div class="p-6">
+            <form id="yieldPredictionForm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Region -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>
+                            Region
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Region" value="2" min="0" max="3" required>
+                        <p class="text-xs text-gray-500">0-3 (Different regions)</p>
+                    </div>
+
+                    <!-- Soil Type -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-mountain mr-2 text-brown-500"></i>
+                            Soil Type
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Soil_Type" value="5" min="0" max="5" required>
+                        <p class="text-xs text-gray-500">0-5 (Different soil types)</p>
+                    </div>
+
+                    <!-- Crop Type -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-leaf mr-2 text-green-500"></i>
+                            Crop Type
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Crop" value="4" min="0" max="5" required>
+                        <p class="text-xs text-gray-500">0-5 (Different crops)</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <!-- Rainfall -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-cloud-rain mr-2 text-blue-300"></i>
+                            Rainfall (mm)
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Rainfall_mm" value="797.47" step="any" required>
+                        <p class="text-xs text-gray-500">Rainfall in millimeters</p>
+                    </div>
+
+                    <!-- Temperature -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-thermometer-half mr-2 text-red-500"></i>
+                            Temperature (°C)
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Temperature_Celsius" value="37.7" step="0.1" required>
+                        <p class="text-xs text-gray-500">Temperature in Celsius</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <!-- Weather Condition -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-cloud mr-2 text-gray-400"></i>
+                            Weather Condition
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Weather_Condition" value="1" min="0" max="2" required>
+                        <p class="text-xs text-gray-500">0=Sunny, 1=Cloudy, 2=Rainy</p>
+                    </div>
+
+                    <!-- Days to Harvest -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-calendar-day mr-2 text-purple-500"></i>
+                            Days to Harvest
+                        </label>
+                        <input type="number" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                               name="Days_to_Harvest" value="74" required>
+                        <p class="text-xs text-gray-500">Days until harvest</p>
+                    </div>
+
+                    <!-- Management -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-tools mr-2 text-orange-500"></i>
+                            Management
+                        </label>
+                        <div class="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <div class="flex items-center">
+                                <input class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                                       type="checkbox" name="Fertilizer_Used" checked>
+                                <label class="ml-2 text-sm text-gray-700">
+                                    <i class="fas fa-flask mr-1 text-green-500"></i>
+                                    Fertilizer Used
+                                </label>
+                            </div>
+                            <div class="flex items-center">
+                                <input class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                                       type="checkbox" name="Irrigation_Used" checked>
+                                <label class="ml-2 text-sm text-gray-700">
+                                    <i class="fas fa-tint mr-1 text-blue-400"></i>
+                                    Irrigation Used
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-8">
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-blue-200">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        Predict Crop Yield
+                    </button>
+                </div>
+            </form>
+
+            <!-- Prediction Result -->
+            <div id="predictionResult" class="mt-6 hidden">
+                <div class="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-sm">
+                    <h5 class="text-lg font-semibold text-gray-800 mb-2">Prediction Result</h5>
+                    <div id="resultContent" class="text-gray-700"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('yieldPredictionForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            Region: formData.get('Region'),
+            Soil_Type: formData.get('Soil_Type'),
+            Crop: formData.get('Crop'),
+            Rainfall_mm: formData.get('Rainfall_mm'),
+            Temperature_Celsius: formData.get('Temperature_Celsius'),
+            Fertilizer_Used: formData.get('Fertilizer_Used') === 'on',
+            Irrigation_Used: formData.get('Irrigation_Used') === 'on',
+            Weather_Condition: formData.get('Weather_Condition'),
+            Days_to_Harvest: formData.get('Days_to_Harvest')
+        };
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Predicting...';
+        submitBtn.disabled = true;
+        
+        fetch('/predict_yield_manual', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            
+            const resultDiv = document.getElementById('predictionResult');
+            const resultContent = document.getElementById('resultContent');
+            
+            if (result.success) {
+                resultContent.innerHTML = `<h4 class="text-xl font-bold text-blue-600">${result.result}</h4>`;
+                resultDiv.className = 'mt-6 block';
+                resultDiv.querySelector('div').className = 'bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-sm';
+            } else {
+                resultContent.innerHTML = `<p class="text-red-600 font-semibold">Error: ${result.error}</p>`;
+                resultDiv.className = 'mt-6 block';
+                resultDiv.querySelector('div').className = 'bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-6 rounded-lg shadow-sm';
+            }
+            
+            // Scroll to result
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        })
+        .catch(error => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            showNotification('Error: ' + error, 'error');
+        });
+    });
+</script>
+{% endblock %}

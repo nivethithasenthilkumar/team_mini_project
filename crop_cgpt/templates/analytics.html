@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Crop Monitoring{% endblock %}
+
+{% block page_title %}Field Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Field Selection -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Field</label>
+                <select id="fieldSelect" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Choose a field</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" id="startDate"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" id="endDate"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+        <button onclick="loadAnalytics()" 
+                class="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-chart-line mr-2"></i>
+            Load Analytics
+        </button>
+    </div>
+
+    <!-- Field Info Cards -->
+    <div id="fieldInfoSection" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="card bg-white rounded-lg shadow p-6">
+                <div class="text-sm text-gray-500 mb-2">Crop Type</div>
+                <div class="text-2xl font-semibold text-gray-900" id="cropType">-</div>
+            </div>
+            <div class="card bg-white rounded-lg shadow p-6">
+                <div class="text-sm text-gray-500 mb-2">Average NDVI</div>
+                <div class="text-2xl font-semibold text-gray-900" id="avgNDVI">-</div>
+            </div>
+            <div class="card bg-white rounded-lg shadow p-6">
+                <div class="text-sm text-gray-500 mb-2">Health Status</div>
+                <div class="text-2xl font-semibold" id="healthStatus">-</div>
+            </div>
+            <div class="card bg-white rounded-lg shadow p-6">
+                <div class="text-sm text-gray-500 mb-2">Days Monitored</div>
+                <div class="text-2xl font-semibold text-gray-900" id="daysMonitored">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div id="chartsSection" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-900">NDVI Trend</h3>
+            <canvas id="ndviChart"></canvas>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-900">Vegetation Indices</h3>
+            <canvas id="indicesChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Yield Prediction & Insights -->
+    <div id="insightsSection" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-900 flex items-center">
+                <i class="fas fa-seedling text-green-500 mr-2"></i>
+                Yield Prediction
+            </h3>
+            <div id="yieldPrediction" class="space-y-4">
+                <!-- Yield prediction will be loaded here -->
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4 text-gray-900 flex items-center">
+                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                Insights & Recommendations
+            </h3>
+            <div id="recommendations" class="space-y-2">
+                <!-- Recommendations will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ndviChart, indicesChart;
+let currentFieldData = null;
+
+async function loadFields() {
+    try {
+        const response = await fetch('/api/fields');
+        const fields = await response.json();
+        
+        const select = document.getElementById('fieldSelect');
+        select.innerHTML = '<option value="">Choose a field</option>' +
+            fields.map(f => `<option value="${f.id}">${f.field_name} (${f.crop_type})</option>`).join('');
+        
+        // Check URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const fieldId = urlParams.get('field');
+        if (fieldId) {
+            select.value = fieldId;
+            loadAnalytics();
+        }
+    } catch (error) {
+        console.error('Error loading fields:', error);
+    }
+}
+
+async function loadAnalytics() {
+    const fieldId = document.getElementById('fieldSelect').value;
+    if (!fieldId) {
+        showNotification('Please select a field', 'error');
+        return;
+    }
+
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    try {
+        let url = `/api/field/${fieldId}/ndvi-data`;
+        if (startDate && endDate) {
+            url += `?start_date=${startDate}&end_date=${endDate}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.error) {
+            showNotification(data.error, 'error');
+            return;
+        }
+        
+        if (data.length === 0) {
+            // Show loading state
+            document.getElementById('fieldInfoSection').classList.remove('hidden');
+            document.getElementById('chartsSection').classList.add('hidden');
+            document.getElementById('insightsSection').classList.add('hidden');
+            
+            const fieldSelect = document.getElementById('fieldSelect');
+            const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+            const fieldInfo = selectedOption.text.split('(');
+            document.getElementById('cropType').textContent = fieldInfo.length > 1 ? fieldInfo[1].replace(')', '') : 'Unknown';
+            document.getElementById('avgNDVI').textContent = '-';
+            document.getElementById('healthStatus').textContent = 'Collecting...';
+            document.getElementById('healthStatus').className = 'text-2xl font-semibold text-yellow-600';
+            document.getElementById('daysMonitored').textContent = '0';
+            
+            showNotification('No data available yet. Collecting satellite data...', 'error');
+            
+            // Trigger data collection
+            const updateBtn = document.createElement('button');
+            updateBtn.className = 'mt-4 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium';
+            updateBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Collect Satellite Data Now';
+            updateBtn.onclick = async () => {
+                updateBtn.disabled = true;
+                updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Collecting data...';
+                
+                try {
+                    await fetch(`/api/field/${fieldId}/update-ndvi`, { method: 'POST' });
+                    showNotification('Data collection started. This may take a minute...', 'success');
+                    
+                    // Wait and reload
+                    setTimeout(() => {
+                        loadAnalytics();
+                    }, 5000);
+                } catch (error) {
+                    showNotification('Error collecting data', 'error');
+                    updateBtn.disabled = false;
+                    updateBtn.innerHTML = '<i class="fas fa-satellite-dish mr-2"></i>Collect Satellite Data Now';
+                }
+            };
+            
+            const fieldInfoSection = document.getElementById('fieldInfoSection');
+            const existingBtn = fieldInfoSection.querySelector('button');
+            if (existingBtn) existingBtn.remove();
+            fieldInfoSection.appendChild(updateBtn);
+            
+            return;
+        }
+
+        currentFieldData = data;
+        displayAnalytics(data);
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        showNotification('Error loading analytics', 'error');
+    }
+}
+
+function displayAnalytics(data) {
+    // Show sections
+    document.getElementById('fieldInfoSection').classList.remove('hidden');
+    document.getElementById('chartsSection').classList.remove('hidden');
+    document.getElementById('insightsSection').classList.remove('hidden');
+
+    // Calculate statistics
+    const avgNDVI = data.reduce((sum, d) => sum + (d.ndvi_mean || 0), 0) / data.length;
+    const healthStatus = getHealthStatus(avgNDVI);
+    
+    document.getElementById('avgNDVI').textContent = avgNDVI.toFixed(3);
+    document.getElementById('healthStatus').textContent = healthStatus;
+    document.getElementById('healthStatus').className = `text-2xl font-semibold ${getHealthColor(avgNDVI)}`;
+    document.getElementById('daysMonitored').textContent = data.length;
+
+    // NDVI Chart
+    const ndviCtx = document.getElementById('ndviChart').getContext('2d');
+    if (ndviChart) ndviChart.destroy();
+    
+    ndviChart = new Chart(ndviCtx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+                label: 'NDVI Mean',
+                data: data.map(d => d.ndvi_mean),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'NDVI Max',
+                data: data.map(d => d.ndvi_max),
+                borderColor: 'rgb(59, 130, 246)',
+                borderDash: [5, 5],
+                tension: 0.4,
+                fill: false
+            }, {
+                label: 'NDVI Min',
+                data: data.map(d => d.ndvi_min),
+                borderColor: 'rgb(239, 68, 68)',
+                borderDash: [5, 5],
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 1
+                }
+            }
+        }
+    });
+
+    // Indices Chart
+    const indicesCtx = document.getElementById('indicesChart').getContext('2d');
+    if (indicesChart) indicesChart.destroy();
+    
+    indicesChart = new Chart(indicesCtx, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [{
+                label: 'EVI',
+                data: data.map(d => d.evi_mean),
+                borderColor: 'rgb(168, 85, 247)',
+                tension: 0.4
+            }, {
+                label: 'SAVI',
+                data: data.map(d => d.savi_mean),
+                borderColor: 'rgb(236, 72, 153)',
+                tension: 0.4
+            }, {
+                label: 'Moisture Index',
+                data: data.map(d => d.moisture_index),
+                borderColor: 'rgb(59, 130, 246)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Yield Prediction
+    displayYieldPrediction(data, avgNDVI);
+    
+    // Recommendations
+    displayRecommendations(data, avgNDVI);
+}
+
+function displayYieldPrediction(data, avgNDVI) {
+    const yieldDiv = document.getElementById('yieldPrediction');
+    
+    // Simple yield prediction based on NDVI
+    let yieldCategory, yieldPercentage, yieldColor;
+    
+    if (avgNDVI >= 0.6) {
+        yieldCategory = 'Excellent';
+        yieldPercentage = 90 + (avgNDVI - 0.6) * 25;
+        yieldColor = 'text-green-600';
+    } else if (avgNDVI >= 0.4) {
+        yieldCategory = 'Good';
+        yieldPercentage = 70 + (avgNDVI - 0.4) * 100;
+        yieldColor = 'text-blue-600';
+    } else if (avgNDVI >= 0.3) {
+        yieldCategory = 'Moderate';
+        yieldPercentage = 50 + (avgNDVI - 0.3) * 200;
+        yieldColor = 'text-yellow-600';
+    } else {
+        yieldCategory = 'Poor';
+        yieldPercentage = avgNDVI * 166;
+        yieldColor = 'text-red-600';
+    }
+    
+    yieldDiv.innerHTML = `
+        <div class="text-center">
+            <div class="text-5xl font-bold ${yieldColor} mb-2">
+                ${yieldPercentage.toFixed(0)}%
+            </div>
+            <div class="text-gray-600 mb-4">Expected Yield Potential</div>
+            <div class="bg-gray-200 rounded-full h-4 mb-2">
+                <div class="bg-gradient-to-r from-green-400 to-green-600 h-4 rounded-full transition-all duration-500"
+                     style="width: ${yieldPercentage}%"></div>
+            </div>
+            <div class="text-sm text-gray-500 mt-4">
+                Based on vegetation health indicators and growth patterns
+            </div>
+        </div>
+    `;
+}
+
+function displayRecommendations(data, avgNDVI) {
+    const recDiv = document.getElementById('recommendations');
+    const recommendations = [];
+    
+    // Trend analysis
+    if (data.length >= 7) {
+        const recentAvg = data.slice(-3).reduce((s, d) => s + (d.ndvi_mean || 0), 0) / 3;
+        const olderAvg = data.slice(0, 3).reduce((s, d) => s + (d.ndvi_mean || 0), 0) / 3;
+        
+        if (recentAvg > olderAvg * 1.1) {
+            recommendations.push({
+                icon: 'fa-arrow-up',
+                color: 'text-green-600',
+                text: 'Positive growth trend detected. Continue current practices.'
+            });
+        } else if (recentAvg < olderAvg * 0.9) {
+            recommendations.push({
+                icon: 'fa-arrow-down',
+                color: 'text-red-600',
+                text: 'Declining trend. Investigate water and nutrient levels.'
+            });
+        }
+    }
+    
+    // NDVI-based recommendations
+    if (avgNDVI < 0.3) {
+        recommendations.push({
+            icon: 'fa-exclamation-triangle',
+            color: 'text-red-600',
+            text: 'Low vegetation health. Immediate action required.'
+        });
+        recommendations.push({
+            icon: 'fa-tint',
+            color: 'text-blue-600',
+            text: 'Check irrigation systems and soil moisture levels.'
+        });
+    } else if (avgNDVI < 0.5) {
+        recommendations.push({
+            icon: 'fa-chart-line',
+            color: 'text-yellow-600',
+            text: 'Moderate health. Monitor closely for changes.'
+        });
+    } else {
+        recommendations.push({
+            icon: 'fa-check-circle',
+            color: 'text-green-600',
+            text: 'Excellent vegetation health. Maintain current practices.'
+        });
+    }
+    
+    // Moisture recommendations
+    const latestMoisture = data[data.length - 1].moisture_index;
+    if (latestMoisture < 0.2) {
+        recommendations.push({
+            icon: 'fa-droplet',
+            color: 'text-orange-600',
+            text: 'Low soil moisture detected. Consider irrigation.'
+        });
+    }
+    
+    recDiv.innerHTML = recommendations.map(rec => `
+        <div class="flex items-start p-3 bg-gray-50 rounded-lg">
+            <i class="fas ${rec.icon} ${rec.color} mt-1 mr-3"></i>
+            <span class="text-gray-700 text-sm">${rec.text}</span>
+        </div>
+    `).join('');
+}
+
+function getHealthStatus(ndvi) {
+    if (ndvi >= 0.6) return 'Excellent';
+    if (ndvi >= 0.4) return 'Good';
+    if (ndvi >= 0.3) return 'Fair';
+    return 'Poor';
+}
+
+function getHealthColor(ndvi) {
+    if (ndvi >= 0.6) return 'text-green-600';
+    if (ndvi >= 0.4) return 'text-blue-600';
+    if (ndvi >= 0.3) return 'text-yellow-600';
+    return 'text-red-600';
+}
+
+// Initialize
+loadFields();
+
+// Set default dates (last 30 days)
+const endDate = new Date();
+const startDate = new Date();
+startDate.setDate(startDate.getDate() - 30);
+
+document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+</script>
+{% endblock %}
